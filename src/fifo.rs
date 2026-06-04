@@ -6,64 +6,54 @@ use std::{
 use crate::cache::Cache;
 use crate::errors::CacheError;
 
-// LRUCache implements [Cache]
-// Least Recently Used Cache (LRU) caching policy evicts the
-// evicts the keys that are the least used when the cache reaches capacity
-pub struct LRUCache<K, V> {
+// FIFOCache implements [Cache]
+// First In First Out (FIFO) caching policy evicts the
+// evicts keys in the order they were inserted
+pub struct FIFOCache<K, V> {
     data: HashMap<K, V>,
     order: VecDeque<K>,
     capacity: usize,
 }
 
-impl<K, V> LRUCache<K, V>
+impl<K, V> FIFOCache<K, V>
 where
     K: Eq + Hash + Clone,
 {
-    pub fn try_new(capacity: usize) -> Result<LRUCache<K, V>, CacheError> {
+    pub fn try_new(capacity: usize) -> Result<FIFOCache<K, V>, CacheError> {
         if capacity == 0 {
             return Err(CacheError::InvalidCacheCapacity);
         }
 
-        Ok(LRUCache {
+        Ok(FIFOCache {
             data: HashMap::new(),
             order: VecDeque::new(),
             capacity: capacity,
         })
     }
-
-    // touch is the machagnism that ensures keys that are accessed
-    // are moved to the back of the eviction queue
-    // this is o(n) so should be optimized
-    fn touch(&mut self, key: &K) {
-        if let Some(index) = self.order.iter().position(|k| k == key) {
-            self.order.remove(index);
-            self.order.push_back(key.clone());
-        }
-    }
 }
 
-impl<K, V> Cache<K, V> for LRUCache<K, V>
+impl<K, V> Cache<K, V> for FIFOCache<K, V>
 where
     K: Eq + Hash + Clone,
 {
     fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if self.data.contains_key(&key) {
-            self.touch(&key);
+        // In FIFO a updated to a value does not
+        // change cache order
+        if self.contains_key(&key) {
             return self.data.insert(key, value);
         }
 
         if self.order.len() >= self.capacity {
-            if let Some(old_key) = self.order.pop_front() {
-                self.data.remove(&old_key);
-            }
-        }
+            self.order.pop_front().inspect(|key| {
+                self.data.remove(&key);
+            });
+        };
 
         self.order.push_back(key.clone());
         self.data.insert(key, value)
     }
 
     fn get(&mut self, key: &K) -> Option<&V> {
-        self.touch(key);
         self.data.get(key)
     }
 

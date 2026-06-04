@@ -1,3 +1,4 @@
+// T
 pub trait Cache<K, V> {
     fn insert(&mut self, key: K, value: V) -> Option<V>;
     fn get(&mut self, key: &K) -> Option<&V>;
