@@ -6,9 +6,23 @@ use std::{
 use crate::cache::Cache;
 use crate::errors::CacheError;
 
-// FIFOCache implements [Cache]
-// First In First Out (FIFO) caching policy evicts the
-// evicts keys in the order they were inserted
+/// FIFOCache implements [Cache]
+/// First In First Out (FIFO) caching policy evicts the
+/// evicts keys in the order they were inserted.
+///
+/// # Examples
+///
+/// ```
+/// use cachetools_rs::fifo::FIFOCache;
+/// use cachetools_rs::cache::Cache;
+///
+/// let mut fifo_cache = FIFOCache::try_new(1)
+///     .expect("cache capacity must be larger than one");
+///
+/// fifo_cache.insert("key", 1);
+///
+/// assert_eq!(fifo_cache.len(), 1);
+/// ```
 pub struct FIFOCache<K, V> {
     data: HashMap<K, V>,
     order: VecDeque<K>,
@@ -19,6 +33,16 @@ impl<K, V> FIFOCache<K, V>
 where
     K: Eq + Hash + Clone,
 {
+    /// Attempt to build a new cache with a given capacity.
+    /// capacity must be a positive integer.
+    ///
+    /// ```
+    /// use cachetools_rs::fifo::FIFOCache;
+    /// use cachetools_rs::cache::Cache;
+    ///
+    /// let fifo_cache: FIFOCache<String, String> = FIFOCache::try_new(1)
+    ///     .expect("cache capacity must be larger than zero");
+    /// ```
     pub fn try_new(capacity: usize) -> Result<FIFOCache<K, V>, CacheError> {
         if capacity == 0 {
             return Err(CacheError::InvalidCacheCapacity);
@@ -36,9 +60,29 @@ impl<K, V> Cache<K, V> for FIFOCache<K, V>
 where
     K: Eq + Hash + Clone,
 {
+    /// Insert a new key value pair into your [`FIFOCache`] returning
+    /// [`None`] if this value is newly inserted to the cache. If the
+    /// value however already existed in the cache that value is returned.
+    /// This behviour is 1:1 with [`std::collections::HashMap::insert`]
+    ///
+    /// ```
+    /// use cachetools_rs::fifo::FIFOCache;
+    /// use cachetools_rs::cache::Cache;
+    ///
+    /// let mut fifo_cache: FIFOCache<&str, u64> = FIFOCache::try_new(1).unwrap();
+    ///
+    /// let first_value = fifo_cache.insert("key_one", 1);
+    /// assert_eq!(first_value, None);
+    ///
+    /// let key_update = fifo_cache.insert("key_one", 2);
+    /// assert_eq!(key_update, Some(1_u64));
+    ///
+    /// let final_key = fifo_cache.get(&"key_one");
+    /// assert_eq!(final_key, Some(2_u64).as_ref());
+    /// ```
     fn insert(&mut self, key: K, value: V) -> Option<V> {
         // In FIFO a updated to a value does not
-        // change cache order
+        // change eviction order
         if self.contains_key(&key) {
             return self.data.insert(key, value);
         }
